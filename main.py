@@ -1,136 +1,185 @@
 import math
+from tabulate import tabulate
 
-'''Empty Weight Fraction'''
-W_TANK = 800  # H2 tank weight (kg)
-A = 1.5  # Curve fit parameter
-B = -0.096  # Curve fit parameter
+# Constants
+g_0 = 9.8  # m/s^2, gravitational acceleration
+payload_weight = 362.87  # Payload weight in kg
+crew = 1
+crew_weight = crew * 90
+SPEED_SOUND_1 = 296  # m/s, speed of sound at altitude 1
+SPEED_SOUND_2 = 296  # m/s, speed of sound at altitude 2
+H2_A1_ratio = 142/43
+cryogenic_h2_density = 71
 
-'''Segment Weight Fractions'''
-F_TAXI = 0.985
-F_DECENT = 0.952
-F_LANDING = 0.99
+# Assumptions
+MAC = 1.6  # meter, mean aerodynamic chord
+WINGSPAN = 13  # meter, wingspan
+K_LD = 15.5  # empirical constant for L/D max
+F_TAXI = 1 - (1 - 0.99) / H2_A1_ratio  # fuel fraction for taxi and take-off
+F_DECENT = 1 - (1 - 0.952) / H2_A1_ratio  # fuel fraction for descent
+F_LANDING = 1 - (1 - 0.995) / H2_A1_ratio  # fuel fraction for landing
+SFC_cruise = 19 / H2_A1_ratio / 1000000  # Specific fuel consumption, kg/s
+SFC_loiter = SFC_cruise * (1 - 0.128)
+S = 6.26  # Wetted area, m^2
 
-SPEED_SOUND_1 = 296
-SPEED_SOUND_2 = 296
+# Flight data
+cruise_distance_1 = 600 * 1852  # 600 NM converted to meters (Cruise 1)
+cruise_distance_2 = 200 * 1852  # 200 NM converted to meters (Cruise 2, diversion)
+cruise_speed = 360 * 0.514444  # 360 knots converted to m/s
+loiter_time_1 = 30  # 30 minutes loiter (first phase)
+loiter_time_2 = 45  # 45 minutes loiter (second phase)
 
-S_WET_REF = 6.2
-SFC = 6.5 / 1000000  # Kg/s
-K_LD = 15.5
-A_LD = 5.5
+# Empty weight constants
+a_ewf = 1.3  # constant for empty weight calculation
+b_ewf = -0.096  #  exponent for empty weight calculation
 
-class Aircraft:
-    def __init__(self):
-        self.seats_cabin = 6
-        self.seats_cockpit = 2
-        self.weight_per_pax = 90  # kg
-        self.cabin_volume_m3 = 6.23  # Minimum cabin volume in cubic meters
-        self.payload_kg = 362.87  # 800 lbs converted to kg
-        self.range_m = 2222400  # 1200 nautical miles converted to meters
-        self.reserves_divert_m = 370400  # 200 nm converted to meters
-        self.reserves_hold_min = 30  # Holding time in minutes
-        self.reserve_fuel_percent = 0.05  # Reserve fuel 5%
-        self.trapped_fuel_percent = 0.01  # Trapped fuel 1%
-        self.balanced_field_length_m = 1219.2  # Balanced field length in meters
-        self.lfl_m = 914.4  # Landing field length in meters
-        self.max_cruise_speed_m_per_s = 216.07  # Max cruise speed in meters/second
-        self.cruise_speed_m_per_s = 185.2  # Cruise speed in meters/second
-        self.min_cruise_altitude_m = 10668  # Minimum cruise altitude in meters
-        self.initial_roc_m_per_s = 20.32  # Initial rate of climb in meters/second
-        self.roc_height_m = 121.92  # Rate of climb height in meters
-        self.technology_freeze_year = 2035
-        self.g_0 = 9.8  # Gravity in m/s²
 
-        self.segment_weight_fractions = {
-            "Taxi": F_TAXI,
-            "Climb_1": None,
-            "Cruise_1": None,
-            "Decent_1": F_DECENT,
-            "Loiter_1": None,
-            "Landing_1": F_LANDING,
-            "Climb_2": None,
-            "Cruise_2": None,
-            "Decent_2": F_DECENT,
-            "Loiter_2": None,
-            "Landing_2": F_LANDING,
-            "Reserve": 1 - self.reserve_fuel_percent,  # Reserve fuel fraction
-            "Trapped": 1 - self.trapped_fuel_percent, # Trapped fuel fraction
-        }
+# Tank-penalty constants
+a_tank = 16.53
+b_tank = -4.818
+c_tank = 0.4216
+d_tank = -0.1132
 
-    def empty_weight_fraction(self, w0, a, b, w_tank):
-        """Calculate the empty weight fraction using the formula: EWF = a * W0^b + Wtank / W0."""
-        ewf = a * (w0 ** b) + (w_tank / w0)
-        return ewf
+# Functions
+
+# Tank penalty function
+def tank_penalty(A_t):
+    """Calculate the fuel-to-total mass ratio G_i for the tank."""
+    G_i = a_tank * math.exp(b_tank * A_t) + c_tank * math.exp(d_tank * A_t)
+    return G_i
+
+# Calculate wing area
+def calc_wing_area(MAC, wingspan):
+    return MAC * wingspan
+
+# Calculate aspect ratio
+def cal_AP_wet(Wingspan, A_wing):
+    return Wingspan**2 / A_wing
+
+# Calculate L/D max
+def L_D_MAX(AP_wet, S, K_LD):
+    return K_LD * math.sqrt(AP_wet / S)
+
+# Weight fraction for climb
+def weight_fraction_climb(speed, a):
+    M = speed / a  # Mach number
+    return 1.0065 - 0.0325 * M  # weight fraction during climb
+
+# Weight fraction for cruise
+def weight_fraction_cruise(SFC, L_D, Distance, Speed):
+    R = Distance  # Cruise range, m
+    g = g_0
+    V = Speed  # Cruise speed, m/s
+    return math.exp((-R * SFC * g) / (V * (L_D * 0.886)))
+
+# Weight fraction for loiter
+def weight_fraction_loiter(SFC, L_D, Time, Speed):
+    E = Time * 60  # Time converted from minutes to seconds
+    g = g_0
+    return math.exp((-E * SFC * g) / (L_D))
+
+def solve_tank_mass(fuel_mass, G_i):
+    """Calculate the tank mass given the fuel mass and the fuel-to-total mass ratio G_i."""
+    if G_i <= 0 or G_i >= 1:
+        raise ValueError("G_i must be between 0 and 1.")
+    tank_mass = (1 / G_i - 1) * fuel_mass
+    return tank_mass
+
+# Empty weight fraction formula
+def empty_weight_fraction(w0, a, b, GI, total_fuel_weight_fraction):
+    """Calculate the empty weight fraction using the formula: EWF = a * W0^b + Wtank / W0."""
+    if w0 <= 0:
+        raise ValueError("W0 must be positive")
+    w_tank = solve_tank_mass((w0 * total_fuel_weight_fraction), GI)
+    ewf = a * (w0 ** b) +  (w_tank / w0)
+    return ewf, w_tank
+
     
-    def weight_fraction_climb(self, speed, a):
-        M = speed / a 
-        wfc = 1.0065 - 0.0325* M
-        return wfc
+    tank_mass = (fuel_mass / G_i) - fuel_mass
+    return tank_mass
 
-    def weight_fraction_cruise(self, SFC, L_D, Distance, Speed):
-        R = Distance
-        g = self.g_0
-        V = Speed
-        wfc = math.exp((-R * SFC * g) / (V * (L_D * 0.886)))
-        return wfc
+# Calculating total weight fraction (Wf/W0)
+def total_weight_fraction(MAC, WINGSPAN, cruise_distance_1, cruise_distance_2, cruise_speed, loiter_time_1, loiter_time_2):
+    # Wing and AP_wet calculations
+    A_wing = calc_wing_area(MAC, WINGSPAN)
+    AR_wet = cal_AP_wet(WINGSPAN, A_wing)
+    L_D_max_value = L_D_MAX(AR_wet, S, K_LD)
 
-    def weight_fraction_loiter(self, SFC, L_D , Time, Speed):
-        E = Time * 60  # Minutes to seconds
-        g = self.g_0
-        V = Speed
-        wfc = math.exp((-E * SFC * g) / (V * L_D))
-        return wfc
+    # Weight fractions for mission phases
+    Wf_W0_taxi = F_TAXI
+    Wf_W0_climb_1 = weight_fraction_climb(cruise_speed, SPEED_SOUND_1)
+    Wf_W0_cruise_1 = weight_fraction_cruise(SFC_cruise, L_D_max_value, cruise_distance_1, cruise_speed)
+    Wf_W0_descent_1 = F_DECENT
+    Wf_W0_loiter_1 = weight_fraction_loiter(SFC_loiter, L_D_max_value, loiter_time_1, cruise_speed)
+    Wf_W0_landing_1 = F_LANDING
 
-    def calculate_L_D_max(self, S_WET_REF, A, K_LD):
-        L_D_MAX = K_LD * math.sqrt(A / S_WET_REF)
-        return L_D_MAX
+    Wf_W0_climb_2 = weight_fraction_climb(cruise_speed, SPEED_SOUND_2)
+    Wf_W0_cruise_2 = weight_fraction_cruise(SFC_cruise, L_D_max_value, cruise_distance_2, cruise_speed)
+    Wf_W0_descent_2 = F_DECENT
+    Wf_W0_loiter_2 = weight_fraction_loiter(SFC_loiter, L_D_max_value, loiter_time_2, cruise_speed)
+    Wf_W0_landing_2 = F_LANDING
 
-    def mission_segment_weight_fractions(self):
-        L_D = self.calculate_L_D_max(S_WET_REF, A_LD, K_LD)
+    # Total weight fraction 
+    Wf_W0_total = (Wf_W0_taxi * Wf_W0_climb_1 * Wf_W0_cruise_1 * Wf_W0_descent_1 * Wf_W0_loiter_1 * Wf_W0_landing_1 * Wf_W0_climb_2 * Wf_W0_cruise_2 * Wf_W0_descent_2 *Wf_W0_loiter_2 * Wf_W0_landing_2)
 
-        self.segment_weight_fractions["Climb_1"] = self.weight_fraction_climb(self.cruise_speed_m_per_s, SPEED_SOUND_1)
-        self.segment_weight_fractions["Cruise_1"] = self.weight_fraction_cruise(SFC, L_D, self.range_m, self.cruise_speed_m_per_s)
-        self.segment_weight_fractions["Loiter_1"] = self.weight_fraction_loiter(SFC, L_D, self.reserves_hold_min, self.cruise_speed_m_per_s*0.8)
-        self.segment_weight_fractions["Climb_2"] = self.weight_fraction_climb(self.cruise_speed_m_per_s, SPEED_SOUND_2)
-        self.segment_weight_fractions["Cruise_2"] = self.weight_fraction_cruise(SFC, L_D, self.reserves_divert_m, self.cruise_speed_m_per_s)
-        self.segment_weight_fractions["Loiter_2"] = self.weight_fraction_loiter(SFC, L_D, self.reserves_hold_min, self.cruise_speed_m_per_s*0.8)
+    return 1.06*(1 - Wf_W0_total), L_D_max_value, WINGSPAN, AR_wet, MAC
 
-        mfw = 1
-        # Iterate through all the values in the dictionary and multiply them
-        for value in self.segment_weight_fractions.values():
-            mfw *= value
+# Iteration function to find correct W0
+def find_correct_w0(W0_initial, payload_weight, a, b, tolerance=1e-6, max_iterations=1000, A_t=3):
+    W0 = W0_initial
+    G_i = tank_penalty(A_t)  # Calculate tank penalty
+    
+    # Calculate total weight fraction
+    total_fuel_weight_fraction, L_D_max_value, wingspan, AR_wet, MAC_value = total_weight_fraction(
+            MAC, WINGSPAN, cruise_distance_1, cruise_distance_2, cruise_speed, loiter_time_1, loiter_time_2
+        )
 
-        return mfw
+    for iteration in range(max_iterations):
+        # Calculate empty weight fraction
+        EWF, tank_mass = empty_weight_fraction(W0, a, b, G_i, total_fuel_weight_fraction)
 
-def main():
-    # Instantiate the Aircraft class
-    aircraft = Aircraft()
+        # Update W0 to account for tank penalty
+        W0_new = (crew_weight + payload_weight) / (1 - EWF - total_fuel_weight_fraction)
 
-    # Initial guess for W0
-    W0 = 100000
-    tolerance = 0.01  # Define a tolerance level for iteration convergence
-    max_iterations = 1000  # Maximum number of iterations
-    iteration = 0
+        # Check for convergence
+        if abs(W0_new - W0) < tolerance:
+            # Return converged W0 and other results
+            return W0_new, L_D_max_value, wingspan, AR_wet, MAC_value, G_i, tank_mass, total_fuel_weight_fraction, EWF
 
-    while iteration < max_iterations:
-        iteration += 1
-        
-        # Calculate the empty weight fraction
-        ewf = aircraft.empty_weight_fraction(W0, A, B, W_TANK)
+        # Update W0 for next iteration
+        W0 = W0_new
 
-        # Calculate the mission weight fraction (including all mission segments and reserves)
-        mwf = aircraft.mission_segment_weight_fractions()
+    raise ValueError("Did not converge within the maximum number of iterations")
 
-        # Update W0 based on the calculated fractions
-        new_W0 = (aircraft.payload_kg + aircraft.payload_kg / (1 - mwf - ewf))
+# Initial guess for W0
+W0_initial = 10000  # Example initial guess in kg
 
-        # Check if the change in W0 is within the tolerance
-        if abs(new_W0 - W0) < tolerance:
-            break
+# Call the iteration function
+A_t = 2.32  
+correct_W0, L_D_max_value, wingspan, AR_wet, MAC_value, G_i, tank_mass, total_fuel_weight_fraction, empty_weight_fraction = find_correct_w0(
+    W0_initial, payload_weight, a_ewf, b_ewf, A_t=A_t
+)
 
-        W0 = new_W0
+fuel_mass = correct_W0 * total_fuel_weight_fraction
 
-    print(f"\nConverged W0: {W0:.2f}")
-    print(f"Empty Weight Fraction: {ewf:.4f}")
-    print(f"Mission Weight Fraction: {mwf:.4f}")
-if __name__ == "__main__":
-    main()
+tank_volume = fuel_mass / cryogenic_h2_density
+
+empty_weight = empty_weight_fraction * correct_W0
+
+# Prepare data for tabulation
+data = [
+    ["Takeoff Weight (W0)", f"{correct_W0:.2f} kg"],
+    ["Empty Weight (WE)", f"{empty_weight:.2f} kg"],
+     ["Fuel Weight", f"{fuel_mass:.2f} kg"],
+    ["L/D_max", f"{L_D_max_value:.2f}"],
+    ["Wingspan", f"{wingspan:.2f} meters"],
+    ["Aspect Ratio (AR_wet)", f"{AR_wet:.2f}"],
+    ["Mean Aerodynamic Chord (MAC)", f"{MAC_value:.2f} meters"],
+    ["Tank Penalty (G_i)", f"{G_i:.4f}"],
+    ["Tank Mass", f"{tank_mass:.2f} kg"],
+    ["Tank Volume", f"{tank_volume:.2f} m^3"]
+]
+
+# Print the table
+table = tabulate(data, headers=["Parameter", "Value"], tablefmt="grid")
+print(table)

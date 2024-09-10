@@ -13,10 +13,10 @@ F_LANDING = 0.99
 SPEED_SOUND_1 = 296
 SPEED_SOUND_2 = 296
 
-S_WET_REF = 6.2
+S_WET_REF = 5.55
 SFC = 6.5 / 1000000  # Kg/s
 K_LD = 15.5
-A_LD = 5.5
+A_LD = 9.08
 
 class Aircraft:
     def __init__(self):
@@ -58,7 +58,9 @@ class Aircraft:
 
     def empty_weight_fraction(self, w0, a, b, w_tank):
         """Calculate the empty weight fraction using the formula: EWF = a * W0^b + Wtank / W0."""
-        ewf = a * (w0 ** b) + (w_tank / w0)
+        if w0 <= 0:
+            raise ValueError("W0 must be positive")
+        ewf = a * (w0 ** b) # + (w_tank / w0)
         return ewf
     
     def weight_fraction_climb(self, speed, a):
@@ -97,16 +99,17 @@ class Aircraft:
         mfw = 1
         # Iterate through all the values in the dictionary and multiply them
         for value in self.segment_weight_fractions.values():
+            if value < 0 or value > 1:
+                raise ValueError(f"Invalid weight fraction: {value}")
             mfw *= value
-
-        return mfw
+        return 1 - mfw
 
 def main():
     # Instantiate the Aircraft class
     aircraft = Aircraft()
 
     # Initial guess for W0
-    W0 = 100000
+    W0 = 10000
     tolerance = 0.01  # Define a tolerance level for iteration convergence
     max_iterations = 1000  # Maximum number of iterations
     iteration = 0
@@ -121,7 +124,7 @@ def main():
         mwf = aircraft.mission_segment_weight_fractions()
 
         # Update W0 based on the calculated fractions
-        new_W0 = (aircraft.payload_kg + aircraft.payload_kg / (1 - mwf - ewf))
+        new_W0 = (aircraft.payload_kg + aircraft.payload_kg / (1 -  mwf - ewf))
 
         # Check if the change in W0 is within the tolerance
         if abs(new_W0 - W0) < tolerance:
@@ -134,3 +137,4 @@ def main():
     print(f"Mission Weight Fraction: {mwf:.4f}")
 if __name__ == "__main__":
     main()
+

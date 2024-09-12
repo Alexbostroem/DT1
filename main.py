@@ -45,12 +45,6 @@ b_tank = -4.818
 c_tank = 0.4216
 d_tank = -0.1132
 
-# Fuselage
-fuselage_diameter = 1.8  # meters, assumed fuselage diameter
-nose_length = 4  # meters, length of nose section (cockpit + avionics)
-cabin_length = 4  # meters, estimated cabin length for 4 passengers
-aft_length = 2  # meters, estimated aft section for tanks and systems
-
 # Functions
 
 # Tank penalty function
@@ -120,20 +114,18 @@ def total_weight_fraction(MAC, WINGSPAN, cruise_distance_1, cruise_distance_2, c
     Wf_W0_taxi = F_TAXI
     Wf_W0_climb_1 = weight_fraction_climb(cruise_speed, SPEED_SOUND_1)
     Wf_W0_cruise_1 = weight_fraction_cruise(SFC_cruise, L_D_max_value, cruise_distance_1, cruise_speed)
-    Wf_W0_descent_1 = F_DECENT
     Wf_W0_loiter_1 = weight_fraction_loiter(SFC_loiter, L_D_max_value, loiter_time_1, cruise_speed)
     Wf_W0_landing_1 = F_LANDING
 
     Wf_W0_climb_2 = weight_fraction_climb(cruise_speed, SPEED_SOUND_2)
     Wf_W0_cruise_2 = weight_fraction_cruise(SFC_cruise, L_D_max_value, cruise_distance_2, cruise_speed)
-    Wf_W0_descent_2 = F_DECENT
     Wf_W0_loiter_2 = weight_fraction_loiter(SFC_loiter, L_D_max_value, loiter_time_2, cruise_speed)
     Wf_W0_landing_2 = F_LANDING
 
     # Total weight fraction 
-    Wf_W0_total = (Wf_W0_taxi * Wf_W0_climb_1 * Wf_W0_cruise_1 * Wf_W0_descent_1 * Wf_W0_loiter_1 * Wf_W0_landing_1 * Wf_W0_climb_2 * Wf_W0_cruise_2 * Wf_W0_descent_2 *Wf_W0_loiter_2 * Wf_W0_landing_2)
+    Wf_W0_total = (Wf_W0_taxi * Wf_W0_climb_1 * Wf_W0_cruise_1 * Wf_W0_loiter_1 * Wf_W0_landing_1 * Wf_W0_climb_2 * Wf_W0_cruise_2 *Wf_W0_loiter_2 * Wf_W0_landing_2)
 
-    return 1.06*(1 - Wf_W0_total), L_D_max_value, WINGSPAN, AR_wet, MAC
+    return 1.06 * (1 - Wf_W0_total), L_D_max_value, WINGSPAN, AR_wet, MAC
 
 # Iteration function to find correct W0
 def find_correct_w0(W0_initial, payload_weight, a, b, tolerance=1e-6, max_iterations=1000, A_t=3):
@@ -181,7 +173,9 @@ empty_weight = empty_weight_fraction * correct_W0
 data = [
     ["Takeoff Weight (W0)", f"{correct_W0:.2f} kg"],
     ["Empty Weight (WE)", f"{empty_weight:.2f} kg"],
-     ["Fuel Weight", f"{fuel_mass:.2f} kg"],
+    ["Empty Fraction ", f"{empty_weight_fraction:.2f}"],
+    ["Fuel Weight", f"{fuel_mass:.2f} kg"],
+    ["Fuel Fraction ", f"{total_fuel_weight_fraction:.2f}"],
     ["L/D_max", f"{L_D_max_value:.2f}"],
     ["Wingspan", f"{wingspan:.2f} meters"],
     ["Aspect Ratio (AR_wet)", f"{AR_wet:.2f}"],

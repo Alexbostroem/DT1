@@ -16,18 +16,18 @@ t_shell = 0.1  # Shell thickness in meters
 A_t = 2
 
 # Assumptions
-MAC = 1.6  # meter, mean aerodynamic chord
+MAC = 1.5  # meter, mean aerodynamic chord
 WINGSPAN = 13  # meter, wingspan
 K_LD = 15.5  # empirical constant for L/D max
 F_TAXI = 1 - (1 - 0.99) / H2_A1_ratio  # fuel fraction for taxi and take-off
 F_DECENT = 1 - (1 - 0.952) / H2_A1_ratio  # fuel fraction for descent
 F_LANDING = 1 - (1 - 0.995) / H2_A1_ratio  # fuel fraction for landing
-SFC_cruise = 19 / H2_A1_ratio / 1000000  # Specific fuel consumption, kg/s
+SFC_cruise = 7.96 * 1/1000000  # Specific fuel consumption, kg/s
 SFC_loiter = SFC_cruise * (1 - 0.128)
 S = 6.26  # Wetted area, m^2
 
 # Flight data
-cruise_distance_1 = 600 * 1852  # 600 NM converted to meters (Cruise 1)
+cruise_distance_1 = 1200 * 1852  # 600 NM converted to meters (Cruise 1)
 cruise_distance_2 = 200 * 1852  # 200 NM converted to meters (Cruise 2, diversion)
 cruise_speed = 360 * 0.514444  # 360 knots converted to m/s
 loiter_time_1 = 30  # 30 minutes loiter (first phase)
@@ -44,6 +44,12 @@ a_tank = 16.53
 b_tank = -4.818
 c_tank = 0.4216
 d_tank = -0.1132
+
+# Fuselage
+fuselage_diameter = 1.8  # meters, assumed fuselage diameter
+nose_length = 3.39  # meters, length of nose section (cockpit + avionics)
+cabin_length = 4  # meters, estimated cabin length for 4 passengers
+aft_length = 2  # meters, estimated aft section for tanks and systems
 
 # Functions
 
@@ -75,6 +81,7 @@ def weight_fraction_cruise(SFC, L_D, Distance, Speed):
     R = Distance  # Cruise range, m
     g = g_0
     V = Speed  # Cruise speed, m/s
+    
     return math.exp((-R * SFC * g) / (V * (L_D * 0.886)))
 
 # Weight fraction for loiter
@@ -108,7 +115,7 @@ def total_weight_fraction(MAC, WINGSPAN, cruise_distance_1, cruise_distance_2, c
     # Wing and AP_wet calculations
     A_wing = calc_wing_area(MAC, WINGSPAN)
     AR_wet = cal_AP_wet(WINGSPAN, A_wing)
-    L_D_max_value = L_D_MAX(AR_wet, S, K_LD)
+    L_D_max_value = 0.9 * (L_D_MAX(AR_wet, S, K_LD)) # Penalty for having wingmounted tanks (More drag)
 
     # Weight fractions for mission phases
     Wf_W0_taxi = F_TAXI
@@ -155,7 +162,7 @@ def find_correct_w0(W0_initial, payload_weight, a, b, tolerance=1e-6, max_iterat
     raise ValueError("Did not converge within the maximum number of iterations")
 
 # Initial guess for W0
-W0_initial = 10000  # Example initial guess in kg
+W0_initial = 3000  # Example initial guess in kg
 
 # Call the iteration function
 
@@ -165,7 +172,7 @@ correct_W0, L_D_max_value, wingspan, AR_wet, MAC_value, G_i, tank_mass, total_fu
 
 fuel_mass = correct_W0 * total_fuel_weight_fraction
 
-tank_volume = fuel_mass / cryogenic_h2_density
+tank_volume_total = fuel_mass / cryogenic_h2_density
 
 empty_weight = empty_weight_fraction * correct_W0
 
@@ -182,29 +189,32 @@ data = [
     ["Mean Aerodynamic Chord (MAC)", f"{MAC_value:.2f} meters"],
     ["Tank Penalty (G_i)", f"{G_i:.4f}"],
     ["Tank Mass", f"{tank_mass:.2f} kg"],
-    ["Tank Volume", f"{tank_volume:.2f} m^3"]
+    ["Tank Volume", f"{tank_volume_total:.2f} m^3"]
 ]
 
 # Print the table
 table = tabulate(data, headers=["Parameter", "Value"], tablefmt="grid")
 print(table)
 
-# Tank parameters
-t_shell = 0.1  # Shell thickness in meters
 
+fuel_mass_per_tank = fuel_mass / 2  # Split between two tanks
+
+# Tank calculation for each of the two tanks
+tank_volume_per_tank = fuel_mass_per_tank / cryogenic_h2_density
 
 # Calculate inner diameter and length (before shell)
-D_inner = ( (4 * tank_volume) / (math.pi * A_t) ) ** (1 / 3)  # Inner diameter from volume
+D_inner = ( (4 * tank_volume_per_tank) / (math.pi * A_t) ) ** (1 / 3)  # Inner diameter from volume
 L_inner = A_t * D_inner  # Inner length based on AR
 
 # Calculate outer diameter and length (after adding shell)
 D_outer = D_inner + 2 * t_shell
 L_outer = L_inner + 2 * t_shell
 
-# Calculate total outer volume (with shell)
+# Calculate total outer volume (with shell) for one tank
 V_outer_tank = math.pi * (D_outer / 2) ** 2 * L_outer
 
-# Print results
+# Print results for one tank
+print(f"Fuel Mass per Tank: {fuel_mass_per_tank:.2f} kg")
 print(f"Inner Diameter (without shell): {D_inner:.2f} m")
 print(f"Inner Length (without shell): {L_inner:.2f} m")
 print(f"Outer Diameter (with shell): {D_outer:.2f} m")
@@ -212,24 +222,4 @@ print(f"Outer Length (with shell): {L_outer:.2f} m")
 print(f"Outer Tank Volume (with shell): {V_outer_tank:.2f} m^3")
 
 
-# Calculate the actual cabin volume (cylindrical section)
-cabin_volume = math.pi * (fuselage_diameter / 2) ** 2 * cabin_length
-
-
-# Calculate fuselage length
-fuselage_length = nose_length + cabin_length + aft_length
-
-# Calculate total fuselage volume (assuming cylindrical fuselage)
-fuselage_volume = math.pi * (fuselage_diameter / 2) ** 2 * fuselage_length
-
-# Check if the outer tank fits within the fuselage
-available_tank_volume = fuselage_volume - cabin_volume
-
-print(f"Total fuselage volume: {fuselage_volume:.2f} m^3")
-print(f"Available volume for tanks: {available_tank_volume:.2f} m^3")
-
-if available_tank_volume >= V_outer_tank:
-    print("The tanks with shell fit within the fuselage.")
-else:
-    print("The tanks with shell do not fit within the fuselage. Consider redesign.")
 

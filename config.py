@@ -20,13 +20,14 @@ t_shell = 0.1  # m, shell thickness
 A_t = 1.5  # Aspect ratio area of tank
 
 # Mission data
-SFC_cruise = 7.96 * 1 / 1000000  # Specific fuel consumption, kg/s
+SFC_cruise = 5.753 * 1 / 1000000  # Specific fuel consumption, kg/s
 SFC_loiter = SFC_cruise * (1 - 0.128)
 K_LD = 15.5  # Empirical constant for L/D max
 
 # Aircraft design parameters
 MAC = 1.5  # meter, mean aerodynamic chord
 WINGSPAN = 13  # meter, wingspan
+structual_factor = 0.95
 
 # Wetted area
 S = 6.26  # Wetted area, m^2
@@ -52,3 +53,11 @@ d_tank = -0.1132
 F_TAXI = 1 - (1 - 0.99) / H2_A1_ratio  # fuel fraction for taxi and take-off
 F_DECENT = 1 - (1 - 0.952) / H2_A1_ratio  # fuel fraction for descent
 F_LANDING = 1 - (1 - 0.995) / H2_A1_ratio  # fuel fraction for landing
+
+# Fuselage dimensions
+D_fuselage = 1.5  # Fuselage diameter in meters
+L_fuselage = 13.5  # Total fuselage length in meters
+L_cabin = 4  # Assuming 80% of the fuselage length is used for cabin space
+# Top-level requirements
+required_cabin_volume_ft3 = 220  # Required cabin volume in cubic feet
+required_cabin_volume_m3 = required_cabin_volume_ft3 / 35.3147  # Convert to cubic meters

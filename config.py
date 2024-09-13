@@ -17,7 +17,7 @@ cryogenic_h2_density = 71  # kg/m^3
 
 # Tank parameters
 t_shell = 0.1  # m, shell thickness
-A_t = 2  # cross-sectional area of tank
+A_t = 1.5  # Aspect ratio area of tank
 
 # Mission data
 SFC_cruise = 7.96 * 1 / 1000000  # Specific fuel consumption, kg/s

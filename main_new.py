@@ -2,8 +2,8 @@ import math
 from config import *  # Import constants
 
 class Tank:
-    def __init__(self, cross_sectional_area, shell_thickness):
-        self.A_t = cross_sectional_area
+    def __init__(self, AR_tank, shell_thickness):
+        self.A_t = AR_tank
         self.t_shell = shell_thickness
     
     def tank_penalty(self):
@@ -109,7 +109,7 @@ def find_correct_w0(W0_initial, aircraft, mission, tank, tolerance=1e-6, max_ite
         total_fuel_weight_fraction, L_D_max_value, AR_wet = total_weight_fraction(
             aircraft, mission, tank, SFC_cruise, SFC_loiter
         )
-        EWF, tank_mass = empty_weight_fraction(W0, a_ewf, b_ewf, tank.tank_penalty(), total_fuel_weight_fraction)
+        EWF, tank_mass = empty_weight_fraction(W0, a_ewf, b_ewf, G_i, total_fuel_weight_fraction)
         W0_new = (aircraft.crew_weight + aircraft.payload_weight) / (1 - EWF - total_fuel_weight_fraction)
         if abs(W0_new - W0) < tolerance:
             return W0_new, L_D_max_value, AR_wet, G_i, tank_mass, total_fuel_weight_fraction, EWF

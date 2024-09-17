@@ -127,7 +127,7 @@ aircraft = Aircraft(payload_weight, crew_weight, WINGSPAN, MAC)
 mission = MissionProfile(cruise_distance_1, cruise_distance_2, cruise_speed, loiter_time_1, loiter_time_2)
 
 # Set initial guess for W0
-W0_initial = 3000
+W0_initial = 6000
 
 # Call the iteration function
 correct_W0, L_D_max_value, AR_wet, G_i, tank_mass, total_fuel_weight_fraction, empty_weight_fraction = find_correct_w0(

@@ -8,11 +8,11 @@ crew_weight = 1 * 90  # 1 crew, 90 kg each
 payload_weight = 362.87  # kg
 
 # Aerodynamic data
-SPEED_SOUND_1 = 296  # m/s
-SPEED_SOUND_2 = 296  # m/s
+SPEED_SOUND_1 = 296.5  # m/s
+SPEED_SOUND_2 = 309.7  # m/s
 
 # Fuel constants
-H2_A1_ratio = 142 / 43
+H2_A1_ratio = 120 / 43
 cryogenic_h2_density = 71  # kg/m^3
 
 # Tank parameters
@@ -25,22 +25,22 @@ SFC_loiter = SFC_cruise * (1 - 0.128)
 K_LD = 15.5  # Empirical constant for L/D max
 
 # Aircraft design parameters
-MAC = 1.5  # meter, mean aerodynamic chord
-WINGSPAN = 13  # meter, wingspan
+MAC = 2  # meter, mean aerodynamic chord
+WINGSPAN = 16.5  # meter, wingspan
 structual_factor = 0.95
 
 # Wetted area
-S = 6.26  # Wetted area, m^2
+S = 7  # Wetted area, m^2
 
 # Flight data
 cruise_distance_1 = 1200 * 1852  # 600 NM converted to meters (Cruise 1)
 cruise_distance_2 = 200 * 1852  # 200 NM converted to meters (Cruise 2, diversion)
 cruise_speed = 360 * 0.514444  # 360 knots converted to m/s
 loiter_time_1 = 30  # 30 minutes loiter (first phase)
-loiter_time_2 = 45  # 45 minutes loiter (second phase)
+loiter_time_2 = 30  # 45 minutes loiter (second phase)
 
 # Empty weight constants
-a_ewf = 1.3  # constant for empty weight calculation
+a_ewf = 1.5  # constant for empty weight calculation
 b_ewf = -0.096  # exponent for empty weight calculation
 
 # Tank-penalty constants
@@ -50,13 +50,13 @@ c_tank = 0.4216
 d_tank = -0.1132
 
 # Fuel fractions for different phases
-F_TAXI = 1 - (1 - 0.99) / H2_A1_ratio  # fuel fraction for taxi and take-off
+F_TAXI = 1 - (1 - 0.97) / H2_A1_ratio  # fuel fraction for taxi and take-off
 F_DECENT = 1 - (1 - 0.952) / H2_A1_ratio  # fuel fraction for descent
 F_LANDING = 1 - (1 - 0.995) / H2_A1_ratio  # fuel fraction for landing
 
 # Fuselage dimensions
-D_fuselage = 1.5  # Fuselage diameter in meters
-L_fuselage = 13.5  # Total fuselage length in meters
+D_fuselage = 2  # Fuselage diameter in meters
+L_fuselage = 16  # Total fuselage length in meters
 L_cabin = 4  # Assuming 80% of the fuselage length is used for cabin space
 # Top-level requirements
 required_cabin_volume_ft3 = 220  # Required cabin volume in cubic feet

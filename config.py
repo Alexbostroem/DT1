@@ -17,7 +17,7 @@ cryogenic_h2_density = 71  # kg/m^3
 
 # Tank parameters
 t_shell = 0.1  # m, shell thickness
-A_t = 1  # Aspect ratio area of tank
+A_t = 1.5  # Aspect ratio area of tank
 
 # Mission data
 SFC_cruise = 5.753 * 1 / 1000000  # Specific fuel consumption, kg/s
@@ -25,12 +25,12 @@ SFC_loiter = SFC_cruise * (1 - 0.128)
 K_LD = 15.5  # Empirical constant for L/D max
 
 # Aircraft design parameters
-MAC = 4  # meter, mean aerodynamic chord
-WINGSPAN = 13  # meter, wingspan
-structual_factor = 1
+MAC = 2  # meter, mean aerodynamic chord
+WINGSPAN = 16.5  # meter, wingspan
+structual_factor = 0.95
 
 # Wetted area
-S = 4.5  # Wetted area, m^2
+S = 7  # Wetted area, m^2
 
 # Flight data
 cruise_distance_1 = 1200 * 1852  # 600 NM converted to meters (Cruise 1)
@@ -55,8 +55,8 @@ F_DECENT = 1 - (1 - 0.952) / H2_A1_ratio  # fuel fraction for descent
 F_LANDING = 1 - (1 - 0.995) / H2_A1_ratio  # fuel fraction for landing
 
 # Fuselage dimensions
-D_fuselage = 1.5  # Fuselage diameter in meters
-L_fuselage = 13.5  # Total fuselage length in meters
+D_fuselage = 2  # Fuselage diameter in meters
+L_fuselage = 16  # Total fuselage length in meters
 L_cabin = 4  # Assuming 80% of the fuselage length is used for cabin space
 # Top-level requirements
 required_cabin_volume_ft3 = 220  # Required cabin volume in cubic feet

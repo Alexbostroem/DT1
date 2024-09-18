@@ -80,7 +80,7 @@ class MissionProfile:
 def total_weight_fraction(aircraft, mission, tank, SFC_cruise, SFC_loiter):
     A_wing = aircraft.calc_wing_area()
     AR_wet = aircraft.calc_aspect_ratio(A_wing)
-    L_D_max_value = 0.9 * aircraft.calc_ld_max(AR_wet, S)
+    L_D_max_value = aircraft.calc_ld_max(AR_wet, S)
 
     Wf_W0_taxi = F_TAXI
     Wf_W0_climb_1 = aircraft.weight_fraction_climb(cruise_speed, SPEED_SOUND_1)
@@ -127,7 +127,7 @@ aircraft = Aircraft(payload_weight, crew_weight, WINGSPAN, MAC)
 mission = MissionProfile(cruise_distance_1, cruise_distance_2, cruise_speed, loiter_time_1, loiter_time_2)
 
 # Set initial guess for W0
-W0_initial = 6000
+W0_initial = 9000
 
 # Call the iteration function
 correct_W0, L_D_max_value, AR_wet, G_i, tank_mass, total_fuel_weight_fraction, empty_weight_fraction = find_correct_w0(
